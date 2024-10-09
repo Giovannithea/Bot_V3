@@ -26,6 +26,7 @@ async function subscribeRaydium() {
                         tokenData: tokenData
                     };
 
+                    console.log(`Launching sniper for token ${sniperConfig.targetToken} with buy amount ${sniperConfig.buyAmount}`);
                     SniperManager.addSniper(sniperConfig);
                 }
             }
