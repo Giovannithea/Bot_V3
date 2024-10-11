@@ -1,11 +1,8 @@
-const {
-    Connection,
-    PublicKey,
-} = require('@solana/web3.js');
+const { Connection, PublicKey } = require('@solana/web3.js');
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
-const connection = new Connection('https://api.mainnet-beta.solana.com', 'confirmed');
+const connection = new Connection(process.env.SOLANA_WS_URL, 'confirmed');
 const RAYDIUM_AMM_PROGRAM_ID = new PublicKey(process.env.RAYDIUM_AMM_PROGRAM_ID);
 
 let db;  // To store the database instance
@@ -55,7 +52,7 @@ async function processRaydiumLpTransaction(connection, signature) {
 
         if (transactionDetails) {
             const message = transactionDetails.transaction.message;
-            const accounts = message.staticAccountKeys.map(key => key.toString());
+            const accounts = message.accountKeys.map(key => key.toString());
 
             console.log("Transaction Message:", message);
             console.log("Accounts:", accounts);
@@ -66,7 +63,6 @@ async function processRaydiumLpTransaction(connection, signature) {
 
                 // Check if this instruction is from the Raydium AMM program
                 if (programId === RAYDIUM_AMM_PROGRAM_ID.toString() && ix.data.length > 0) {
-
                     // Extract account indices based on the LP creation instruction
                     const mint0 = accounts[ix.accounts[8]];  // Base token mint
                     const mint1 = accounts[ix.accounts[9]];  // Quote token mint
@@ -94,18 +90,10 @@ async function processRaydiumLpTransaction(connection, signature) {
                         pcMint: new PublicKey(mint1).toString(),
                         coinVault: new PublicKey(baseVault).toString(),
                         pcVault: new PublicKey(quoteVault).toString(),
-                        withdrawQueue: new PublicKey(accounts[ix.accounts[9]]).toString(),
                         ammTargetOrders: new PublicKey(ammTarget).toString(),
-                        poolTempLp: new PublicKey(accounts[ix.accounts[11]]).toString(),
-                        marketProgramId: new PublicKey(marketProgram).toString(),
-                        marketId: new PublicKey(marketId).toString(),
-                        userWallet: new PublicKey(accounts[ix.accounts[14]]).toString(),
-                        userCoinVault: new PublicKey(accounts[ix.accounts[15]]).toString(),
-                        userPcVault: new PublicKey(accounts[ix.accounts[16]]).toString(),
-                        userLpVault: new PublicKey(accounts[ix.accounts[17]]).toString(),
-                        ammConfigId: new PublicKey(accounts[ix.accounts[18]]).toString(),
-                        feeDestinationId: new PublicKey(accounts[ix.accounts[19]]).toString(),
-                        timestamp: new Date()  // Add a timestamp to the data
+                        serumMarket: new PublicKey(marketId).toString(),
+                        serumProgram: new PublicKey(marketProgram).toString(),
+                        deployer: new PublicKey(deployer).toString()
                     };
 
                     // Save token data to MongoDB
@@ -114,12 +102,15 @@ async function processRaydiumLpTransaction(connection, signature) {
                     return tokenData;
                 }
             }
+        } else {
+            console.error('No transaction details found for signature:', signature);
         }
     } catch (error) {
-        console.error("Error fetching/processing transaction:", error.message);
+        console.error('Error fetching/processing transaction:', error.message);
     }
-
-    return null;
 }
 
-module.exports = { processRaydiumLpTransaction, connectToDatabase };
+module.exports = {
+    connectToDatabase,
+    processRaydiumLpTransaction
+};
